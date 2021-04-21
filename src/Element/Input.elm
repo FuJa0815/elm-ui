@@ -51,7 +51,7 @@ This is also the first input element that has a [`required label`](#Label).
 
     view model =
         Input.checkbox []
-            { onChange = GuacamoleChecked
+            { onChange = Just GuacamoleChecked
             , icon = Input.defaultCheckbox
             , checked = model.guacamole
             , label =
@@ -100,7 +100,7 @@ Nevertheless, here we are. Here's how you put one together
         [ padding 10
         , spacing 20
         ]
-        { onChange = ChooseLunch
+        { onChange = Just ChooseLunch
         , selected = Just model.lunch
         , label = Input.labelAbove [] (text "Lunch")
         , options =
