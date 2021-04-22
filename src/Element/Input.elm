@@ -51,7 +51,7 @@ This is also the first input element that has a [`required label`](#Label).
 
     view model =
         Input.checkbox []
-            { onChange = GuacamoleChecked
+            { onChange = Just GuacamoleChecked
             , icon = Input.defaultCheckbox
             , checked = model.guacamole
             , label =
@@ -100,7 +100,7 @@ Nevertheless, here we are. Here's how you put one together
         [ padding 10
         , spacing 20
         ]
-        { onChange = ChooseLunch
+        { onChange = Just ChooseLunch
         , selected = Just model.lunch
         , label = Input.labelAbove [] (text "Lunch")
         , options =
@@ -197,6 +197,7 @@ import Internal.Flag as Flag
 import Internal.Model as Internal
 import Internal.Style exposing (classes)
 import Json.Decode as Json
+import VirtualDom
 
 
 {-| -}
@@ -402,6 +403,13 @@ hasFocusStyle attr =
         _ ->
             False
 
+mapMaybeNoAttribute : (a -> VirtualDom.Attribute msg) -> Maybe a -> Internal.Attribute aligned msg
+mapMaybeNoAttribute mapFunc maybeObj =
+    case maybeObj of
+        Just obj ->
+            Internal.Attr <| mapFunc obj
+        Nothing ->
+            Internal.NoAttribute
 
 {-| -}
 type alias Checkbox msg =
@@ -423,7 +431,7 @@ type alias Checkbox msg =
 checkbox :
     List (Attribute msg)
     ->
-        { onChange : Bool -> msg
+        { onChange : Maybe (Bool -> msg)
         , icon : Bool -> Element msg
         , checked : Bool
         , label : Label msg
@@ -438,16 +446,12 @@ checkbox attrs { label, icon, checked, onChange } =
               else
                 Element.spacing
                     6
-            , Internal.Attr (Html.Events.onClick (onChange (not checked)))
+            , mapMaybeNoAttribute (\onChangeValue -> Html.Events.onClick (onChangeValue (not checked))) onChange
             , Region.announce
             , onKeyLookup <|
                 \code ->
-                    if code == enter then
-                        Just <| onChange (not checked)
-
-                    else if code == space then
-                        Just <| onChange (not checked)
-
+                    if code == enter || code == space then
+                        Maybe.map (\changeFunc -> changeFunc <| not checked) onChange
                     else
                         Nothing
             , tabindex 0
@@ -526,7 +530,7 @@ defaultThumb =
                 Element.none
             )
         ]
-        { onChange = AdjustValue
+        { onChange = Just AdjustValue
         , label =
             Input.labelAbove []
                 (text "My Slider Value")
@@ -550,13 +554,13 @@ The slider can be vertical or horizontal depending on the width/height of the sl
 
   - set `step` to be `Just 1`, or some other whole value
   - `value = toFloat model.myInt`
-  - And finally, round the value before making a message `onChange = round >> AdjustValue`
+  - And finally, round the value before making a message `onChange = Just <| round >> AdjustValue`
 
 -}
 slider :
     List (Attribute msg)
     ->
-        { onChange : Float -> msg
+        { onChange : Maybe (Float -> msg)
         , label : Label msg
         , min : Float
         , max : Float
@@ -714,19 +718,20 @@ slider attributes input =
                         thumbShadowStyle
                     )
                 , Internal.Attr (Html.Attributes.class (className ++ " ui-slide-bar focusable-parent"))
-                , Internal.Attr
-                    (Html.Events.onInput
-                        (\str ->
-                            case String.toFloat str of
-                                Nothing ->
-                                    -- This should never happen because the browser
-                                    -- should always provide a Float.
-                                    input.onChange 0
+                , mapMaybeNoAttribute (\onChangeValue ->
+                        (Html.Events.onInput
+                            (\str ->
+                                case String.toFloat str of
+                                    Nothing ->
+                                        -- This should never happen because the browser
+                                        -- should always provide a Float.
+                                        onChangeValue 0
 
-                                Just val ->
-                                    input.onChange val
+                                    Just val ->
+                                        onChangeValue val
+                            )
                         )
-                    )
+                    ) input.onChange
                 , Internal.Attr <|
                     Html.Attributes.type_ "range"
                 , Internal.Attr <|
@@ -848,7 +853,7 @@ type TextKind
 
 {-| -}
 type alias Text msg =
-    { onChange : String -> msg
+    { onChange : Maybe (String -> msg)
     , text : String
     , placeholder : Maybe (Placeholder msg)
     , label : Label msg
@@ -950,7 +955,7 @@ textHelper textInput attrs textOptions =
                         ]
                  )
                     ++ [ value textOptions.text
-                       , Internal.Attr (Html.Events.onInput textOptions.onChange)
+                       , mapMaybeNoAttribute  (\onChangeValue -> Html.Events.onInput onChangeValue) textOptions.onChange
                        , hiddenLabelAttribute textOptions.label
                        , spellcheck textInput.spellchecked
                        , Maybe.map autofill textInput.autofill
@@ -1406,7 +1411,7 @@ redistributeOver isMultiline stacked attr els =
 text :
     List (Attribute msg)
     ->
-        { onChange : String -> msg
+        { onChange : Maybe (String -> msg)
         , text : String
         , placeholder : Maybe (Placeholder msg)
         , label : Label msg
@@ -1425,7 +1430,7 @@ text =
 spellChecked :
     List (Attribute msg)
     ->
-        { onChange : String -> msg
+        { onChange : Maybe (String -> msg)
         , text : String
         , placeholder : Maybe (Placeholder msg)
         , label : Label msg
@@ -1443,7 +1448,7 @@ spellChecked =
 search :
     List (Attribute msg)
     ->
-        { onChange : String -> msg
+        { onChange : Maybe (String -> msg)
         , text : String
         , placeholder : Maybe (Placeholder msg)
         , label : Label msg
@@ -1467,7 +1472,7 @@ A password takes all the arguments a normal `Input.text` would, and also **show*
 newPassword :
     List (Attribute msg)
     ->
-        { onChange : String -> msg
+        { onChange : Maybe (String -> msg)
         , text : String
         , placeholder : Maybe (Placeholder msg)
         , label : Label msg
@@ -1498,7 +1503,7 @@ newPassword attrs pass =
 currentPassword :
     List (Attribute msg)
     ->
-        { onChange : String -> msg
+        { onChange : Maybe (String -> msg)
         , text : String
         , placeholder : Maybe (Placeholder msg)
         , label : Label msg
@@ -1529,7 +1534,7 @@ currentPassword attrs pass =
 username :
     List (Attribute msg)
     ->
-        { onChange : String -> msg
+        { onChange : Maybe (String -> msg)
         , text : String
         , placeholder : Maybe (Placeholder msg)
         , label : Label msg
@@ -1547,7 +1552,7 @@ username =
 email :
     List (Attribute msg)
     ->
-        { onChange : String -> msg
+        { onChange : Maybe (String -> msg)
         , text : String
         , placeholder : Maybe (Placeholder msg)
         , label : Label msg
@@ -1571,7 +1576,7 @@ Use `Element.spacing` to change its line-height.
 multiline :
     List (Attribute msg)
     ->
-        { onChange : String -> msg
+        { onChange : Maybe (String -> msg)
         , text : String
         , placeholder : Maybe (Placeholder msg)
         , label : Label msg
@@ -1683,7 +1688,7 @@ optionWith val view =
 radio :
     List (Attribute msg)
     ->
-        { onChange : option -> msg
+        { onChange : Maybe (option -> msg)
         , options : List (Option option msg)
         , selected : Maybe option
         , label : Label msg
@@ -1698,7 +1703,7 @@ radio =
 radioRow :
     List (Attribute msg)
     ->
-        { onChange : option -> msg
+        { onChange : Maybe (option -> msg)
         , options : List (Option option msg)
         , selected : Maybe option
         , label : Label msg
@@ -1777,7 +1782,7 @@ radioHelper :
     Orientation
     -> List (Attribute msg)
     ->
-        { onChange : option -> msg
+        { onChange : Maybe (option -> msg)
         , options : List (Option option msg)
         , selected : Maybe option
         , label : Label msg
@@ -1802,7 +1807,11 @@ radioHelper orientation attrs input =
 
                     Column ->
                         Element.width Element.fill
-                , Events.onClick (input.onChange val)
+                , case input.onChange of
+                    Just onChangeValue ->
+                        Events.onClick (onChangeValue val)
+                    Nothing ->
+                        Internal.NoAttribute
                 , case status of
                     Selected ->
                         Internal.Attr <|
@@ -1891,37 +1900,34 @@ radioHelper orientation attrs input =
             , Just <|
                 Internal.Attr <|
                     Html.Attributes.attribute "role" "radiogroup"
-            , case prevNext of
-                Nothing ->
-                    Nothing
-
-                Just ( prev, next ) ->
-                    Just
-                        (onKeyLookup <|
+            , input.onChange
+                |> Maybe.andThen (\onChangeValue ->
+                    Maybe.map (\(prev, next) ->
+                        onKeyLookup <|
                             \code ->
                                 if code == leftArrow then
-                                    Just (input.onChange prev)
+                                    Just (onChangeValue prev)
 
                                 else if code == upArrow then
-                                    Just (input.onChange prev)
+                                    Just (onChangeValue prev)
 
                                 else if code == rightArrow then
-                                    Just (input.onChange next)
+                                    Just (onChangeValue next)
 
                                 else if code == downArrow then
-                                    Just (input.onChange next)
+                                    Just (onChangeValue next)
 
                                 else if code == space then
                                     case input.selected of
                                         Nothing ->
-                                            Just (input.onChange prev)
+                                            Just (onChangeValue prev)
 
                                         _ ->
                                             Nothing
 
                                 else
                                     Nothing
-                        )
+                          ) prevNext )
             ]
             ++ events
          -- ++ hideIfEverythingisInvisible
